@@ -1,0 +1,8 @@
+<h1>Latest Prediction</h1>
+{% if prediction %}
+    <p>Cryptocurrency: {{ prediction.cryptocurrency }}</p>
+    <p>Predicted Price: {{ prediction.predicted_price }}</p>
+    <p>Timestamp: {{ prediction.timestamp }}</p>
+{% else %}
+    <p>No predictions found.</p>
+{% endif %}
