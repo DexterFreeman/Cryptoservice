@@ -9,14 +9,18 @@ const showStore = create((set) => ({
     graphData: [], 
     resData: [], 
 
+    reset: () => {
+        set({graphData: [], data: null, resData: []})
+    },
+
     fetchData: async (id) => {
+        console.log("This has ran")
         const [graphRes, dataRes] = await Promise.all([
-          
             axios.get(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=24`),
             axios.get(`https://api.coingecko.com/api/v3/coins/${id}?localization=false&market_data=true`),
         ])
       
-      
+        
   
         const graphData = graphRes.data.prices.map((price) => {
             const [timestamp, p] = price; 
@@ -28,7 +32,7 @@ const showStore = create((set) => ({
 
             }
         })
-        console.log(dataRes)
+        
         set({graphData: graphData})
         set({resData: dataRes})
     },
