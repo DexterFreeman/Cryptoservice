@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd 
-import pandas_datareader as web 
 import datetime as dt
 import keras 
 from sklearn.preprocessing import MinMaxScaler
@@ -12,7 +11,7 @@ import yfinance as yf
 crypto_currency = 'BTC-USD'
 
 # Time frame
-start = dt.datetime(2016, 1, 1)
+start = dt.datetime(2017, 1, 1)
 end = dt.datetime.now()
 
 # Gets data from Yahoo Finance
@@ -63,7 +62,7 @@ model.fit(x_train, y_train, epochs=25, batch_size=32)
 
 #Testing the model 
 
-test_start = dt.datetime(2020,1,1)
+test_start = dt.datetime(2021,1,1)
 test_end = dt.datetime.now()
 
 
