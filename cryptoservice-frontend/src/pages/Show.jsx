@@ -15,6 +15,12 @@ export const Show = () => {
   const store = showStore();
   const params = useParams();
 
+  const handleClick = (e) => {
+    e.preventDefault() 
+    store.fetchPrediction(store.resData.data.symbol)
+  }
+
+
   React.useEffect(() => {
     store.fetchData(params.id);
 
@@ -23,7 +29,7 @@ export const Show = () => {
     }
   }, []);
 
-  console.log(store.resData.data)
+
 
   return (
     <div>
@@ -34,6 +40,10 @@ export const Show = () => {
         <img src={store.resData.data.image.large} />
         <h2>{store.resData.data.name}</h2>
       </header>
+      <button onClick={handleClick}>Get prediction</button>
+      {store.predictionData.data && <div className="width"><h2>Prediction in 7 days:</h2>
+      <h3>{store.predictionData.data.predicted_price}</h3></div>}
+      
       <div className="width">
       <div className="show-graph">
         <ResponsiveContainer width="100%" height="100%">
