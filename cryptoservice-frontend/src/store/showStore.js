@@ -11,7 +11,7 @@ const showStore = create((set) => ({
     predictionData: [], 
 
     reset: () => {
-        set({graphData: [], data: null, resData: []})
+        set({graphData: [], data: null, resData: [], predictionData: [], })
     },
 
     fetchPrediction: async (symbol) => {

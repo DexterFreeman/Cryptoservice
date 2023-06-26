@@ -120,7 +120,7 @@ def make_prediction(currency):
     real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
     prediction = model.predict(real_data)
     prediction = scaler.inverse_transform(prediction)
-    predicted_price = round(float(prediction[0][0]), 2)
+    predicted_price = round(float(prediction[0][0]), 5)
     return predicted_price 
 
 def create_prediction(request):

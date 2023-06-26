@@ -40,9 +40,12 @@ export const Show = () => {
         <img src={store.resData.data.image.large} />
         <h2>{store.resData.data.name}</h2>
       </header>
-      <button onClick={handleClick}>Get prediction</button>
-      {store.predictionData.data && <div className="width"><h2>Prediction in 7 days:</h2>
-      <h3>{store.predictionData.data.predicted_price}</h3></div>}
+      <div className="prediction__container width">
+        <button onClick={handleClick}>Get prediction</button>
+        {store.predictionData.data && <div className="prediction__container-values"><h2>Prediction in 7 days:</h2>
+        <h3>{store.predictionData.data.predicted_price}</h3></div>}
+      </div>
+     
       
       <div className="width">
       <div className="show-graph">
