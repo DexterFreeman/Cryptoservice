@@ -23,6 +23,8 @@ export const Show = () => {
     }
   }, []);
 
+  console.log(store.resData.data)
+
   return (
     <div>
       <Header back></Header>
@@ -61,27 +63,27 @@ export const Show = () => {
       <div className="show-details">
         <h2>Details</h2>
       <div className="show-details-row">
-        <h4>Market cap rank</h4>
+        <h4>Market cap rank⠀</h4>
         <span>{store.resData.data.market_cap_rank}</span>
       </div>
       <div className="show-details-row">
-        <h4>24H high</h4>
+        <h4>24H high⠀</h4>
         <span>${store.resData.data.market_data.high_24h.usd}</span>
       </div>
       <div className="show-details-row">
-        <h4>24H low</h4>
+        <h4>24H low⠀</h4>
         <span>${store.resData.data.market_data.low_24h.usd}</span>
       </div>
       <div className="show-details-row">
-        <h4>Circulating supply</h4>
+        <h4>Circulating supply⠀</h4>
         <span>${store.resData.data.market_data.circulating_supply}</span>
       </div>
       <div className="show-details-row">
-        <h4>Current price</h4>
+        <h4>Current price⠀</h4>
         <span>${store.resData.data.market_data.current_price.usd}</span>
       </div>
       <div className="show-details-row">
-        <h4>1yh Change</h4>
+        <h4>1yh Change⠀</h4>
         <span>
           {store.resData.data.market_data.price_change_percentage_1y}%
         </span>
