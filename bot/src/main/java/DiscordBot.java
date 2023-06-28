@@ -16,6 +16,7 @@ public class DiscordBot {
     public static void main(String[] args) throws LoginException {
         //Key hidden from github :)
         JDA bot = JDABuilder.createDefault(Keys.bot_key).enableIntents(GatewayIntent.MESSAGE_CONTENT).addEventListeners(new BotListener()).build();
+        bot.getGuildById("1123175549435641866").upsertCommand("getPrediction", "Get a prediction by currency").queue();
 
     }
 
