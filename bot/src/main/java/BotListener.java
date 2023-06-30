@@ -53,7 +53,7 @@ public class BotListener extends ListenerAdapter {
                 textChannel.sendMessage("Currency: " + predictionJson.get("currency")).queue();
                 textChannel.sendMessage("Predicted price: " + predictedPrice).queue();
                 double currentPriceUSD = getCurrentPrice(BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency)));
-                textChannel.sendMessage("Current price: " + currentPriceUSD);
+                textChannel.sendMessage("Current price: " + currentPriceUSD).queue();
 
                 if (predictedPrice > currentPriceUSD) {
                     textChannel.sendMessage("BUY").queue();
@@ -121,6 +121,7 @@ public class BotListener extends ListenerAdapter {
             URL apiUrl = new URL(url);
             HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
             connection.setRequestMethod("GET");
+            //Very high because my django api is very slow :(
             connection.setConnectTimeout(25000);
             connection.setReadTimeout(2500000);
 
@@ -140,86 +141,96 @@ public class BotListener extends ListenerAdapter {
         return new JSONObject(responseContent.toString());
     }
 
+    private void getLatestPrediction(MessageReceivedEvent event) {
+        String apiUrl = "http://127.0.0.1:8000/predictions/api/latest?format=json";
+        HttpClient httpClient = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(apiUrl))
+                .GET()
+                .timeout(Duration.ofSeconds(5))
+                .build();
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int statusCode = response.statusCode();
+
+            if (statusCode >= 200 && statusCode <= 299) {
+                JSONObject jsonObject = new JSONObject(response.body());
+
+                String timestamp = jsonObject.getString("timestamp");
+                String cryptocurrency = jsonObject.getString("cryptocurrency");
+
+                Optional<Double> predictedPriceOptional = getDoubleFromJSONObject(jsonObject, "predicted_price");
+                double predictedPrice = predictedPriceOptional.orElseThrow(() -> new IOException("Predicted price not found in API response."));
+
+                event.getChannel().sendMessage("Timestamp: " + timestamp).queue();
+                event.getChannel().sendMessage("Cryptocurrency: " + cryptocurrency).queue();
+                event.getChannel().sendMessage("Predicted price: " + predictedPrice).queue();
+            } else {
+                throw new IOException("Failed to fetch data from: " + apiUrl + ", status code: " + statusCode);
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException("Failed to fetch the latest prediction.", e);
+        }
+    }
+
+    public void createPrediction(MessageReceivedEvent event){
+        for (String currency : BotUtils.crypto_currencies_list) {
+            try {
+                String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
+                JSONObject predictionJson = getRequestJson(predictionUrl);
+                System.out.println(predictionJson);
+                event.getChannel().sendMessage("Currency: " + predictionJson.get("currency")).queue();
+                event.getChannel().sendMessage("Predicted price: " + predictionJson.get("predicted_price")).queue();
+                double predictedPrice = Double.parseDouble((String) predictionJson.get("predicted_price"));
+                double currentPriceUSD = getCurrentPrice(BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency));
+
+                event.getChannel().sendMessage("Current price: " + currentPriceUSD).queue();
+
+                if (predictedPrice > currentPriceUSD) {
+                    event.getChannel().sendMessage("BUY").queue();
+                } else {
+                    event.getChannel().sendMessage("SELL").queue();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    public void getPrediction(String currency, MessageReceivedEvent event){
+        try {
+            String predictionUrl = "http://127.0.0.1:8000/predictions/latest/?currency=" + currency;
+            JSONObject predictionJson = getRequestJson(predictionUrl);
+            event.getChannel().sendMessage("Timestamp: " + predictionJson.get("timestamp")).queue();
+            event.getChannel().sendMessage("Cryptocurrency: " + predictionJson.get("cryptocurrency")).queue();
+            event.getChannel().sendMessage("Predicted price: " + predictionJson.get("predicted_price")).queue();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        BufferedReader reader;
-        String line;
-        StringBuffer responseContent = new StringBuffer();
+
+        System.out.println("Messaged received");
+
         if (!event.getAuthor().isBot()) {
             String message = event.getMessage().getContentRaw();
-            if (message.charAt(0) != '!') {
+            if (message.charAt(0) == '!') {
                 List<String> messageArray = List.of(message.split(" "));
                 switch (messageArray.get(0)) {
                     case "!latestprediction":
-                        try {
-                            URL url = new URL("http://127.0.0.1:8000/predictions/api/latest?format=json");
-                            connection = (HttpURLConnection) url.openConnection();
-
-                            //Request setup
-                            connection.setRequestMethod("GET");
-                            connection.setConnectTimeout(5000);
-                            connection.setReadTimeout(5000);
-
-                            int status = connection.getResponseCode();
-                            if (status > 299) {
-                                reader = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
-                                while ((line = reader.readLine()) != null) {
-                                    responseContent.append(line);
-                                }
-                                reader.close();
-                            } else {
-                                reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                                while ((line = reader.readLine()) != null) {
-                                    responseContent.append(line);
-                                }
-                            }
-                            JSONObject jsonObject = new JSONObject(responseContent.toString());
-                            System.out.println(jsonObject.get("predicted_price"));
-                            event.getChannel().sendMessage("Timestamp: " + jsonObject.get("timestamp")).queue();
-                            event.getChannel().sendMessage("Cryptocurrency: " + jsonObject.get("cryptocurrency")).queue();
-                            event.getChannel().sendMessage("Predicted price: " + jsonObject.get("predicted_price")).queue();
-                        } catch (MalformedURLException e) {
-                            throw new RuntimeException(e);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                        //call the latest prediction
+                            getLatestPrediction(event);
                         break;
 
                     case "!createpredictions":
-                        JDA jda = event.getJDA();
-                        Guild guild = jda.getGuildById("1123175549435641866");
-                        TextChannel textChannel = guild.getTextChannelById("1123175549435641869");
-                        for (String currency : BotUtils.crypto_currencies_list) {
-                            try {
-                                String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
-                                JSONObject predictionJson = getRequestJson(predictionUrl);
-                                System.out.println(predictionJson);
-                                textChannel.sendMessage("Currency: " + predictionJson.get("currency")).queue();
-                                textChannel.sendMessage("Predicted price: " + predictionJson.get("predicted_price")).queue();
-                                double predictedPrice = Double.parseDouble((String) predictionJson.get("predicted_price"));
-
-                                JSONObject bitcoinJson = getRequestJson("https://api.coingecko.com/api/v3/coins/" + currency + "?localization=false&market_data=true");
-                                JSONObject marketData = bitcoinJson.getJSONObject("market_data");
-                                JSONObject currentPrice = marketData.getJSONObject("current_price");
-                                double usdPrice = currentPrice.getDouble("usd");
-                                System.out.println(usdPrice);
-                                textChannel.sendMessage("Current price: " + usdPrice);
-
-                                if (predictedPrice > usdPrice) {
-                                    textChannel.sendMessage("BUY").queue();
-                                } else {
-                                    textChannel.sendMessage("SELL").queue();
-                                }
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
+                            createPrediction(event);
                         break;
 
                     case "!getprediction":
                         String currency = messageArray.get(1);
-                        //code for getting a prediction.
+                        getPrediction(currency, event);
                         break;
                 }
             }
