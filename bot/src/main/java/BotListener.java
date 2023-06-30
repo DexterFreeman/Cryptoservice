@@ -6,18 +6,21 @@ import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
-import java.nio.channels.Channel;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,37 +34,76 @@ public class BotListener extends ListenerAdapter {
     public void onReady(@NotNull ReadyEvent event) {
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
         scheduledExecutorService.scheduleAtFixedRate(() -> {
-            System.out.println("Scheduled task running");
             JDA jda = event.getJDA();
             Guild guild = jda.getGuildById("1123175549435641866");
             TextChannel textChannel = guild.getTextChannelById("1123175549435641869");
-            for (String currency : BotUtils.crypto_currencies_list) {
-                try {
-                    String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
-                    JSONObject predictionJson = getRequestJson(predictionUrl);
-                    System.out.println(predictionJson);
-                    textChannel.sendMessage("Currency: " + predictionJson.get("currency")).queue();
-                    textChannel.sendMessage("Predicted price: " + predictionJson.get("predicted_price")).queue();
-                    double predictedPrice = Double.parseDouble((String) predictionJson.get("predicted_price"));
+            createDailyTask(textChannel);
 
-                    JSONObject bitcoinJson = getRequestJson("https://api.coingecko.com/api/v3/coins/" + BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency)) + "?localization=false&market_data=true");
-                    JSONObject marketData = bitcoinJson.getJSONObject("market_data");
-                    JSONObject currentPrice = marketData.getJSONObject("current_price");
-                    double usdPrice = currentPrice.getDouble("usd");
-                    System.out.println(usdPrice);
-                    textChannel.sendMessage("Current price: " + usdPrice);
+    }, getInitialDelay(), TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
 
-                    if (predictedPrice > usdPrice) {
-                        textChannel.sendMessage("BUY").queue();
-                    } else {
-                        textChannel.sendMessage("SELL").queue();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }, getInitialDelay(), TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
+
+
     }
+    private void createDailyTask(TextChannel textChannel) {
+        for (String currency : BotUtils.crypto_currencies_list) {
+            try {
+                String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
+                JSONObject predictionJson = getRequestJson(predictionUrl);
+                double predictedPrice = Double.parseDouble((String) predictionJson.get("predicted_price"));
+                textChannel.sendMessage("Currency: " + predictionJson.get("currency")).queue();
+                textChannel.sendMessage("Predicted price: " + predictedPrice).queue();
+                double currentPriceUSD = getCurrentPrice(BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency)));
+                textChannel.sendMessage("Current price: " + currentPriceUSD);
+
+                if (predictedPrice > currentPriceUSD) {
+                    textChannel.sendMessage("BUY").queue();
+                } else {
+                    textChannel.sendMessage("SELL").queue();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private double getCurrentPrice(String currency) throws IOException {
+        String apiUrl = "https://api.coingecko.com/api/v3/coins/" + currency + "?localization=false&market_data=true";
+
+        HttpClient httpClient = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(apiUrl))
+                .GET()
+                .timeout(Duration.ofSeconds(25))
+                .build();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int statusCode = response.statusCode();
+
+            if (statusCode >= 200 && statusCode <= 299) {
+                JSONObject bitcoinJson = new JSONObject(response.body());
+                JSONObject marketData = bitcoinJson.getJSONObject("market_data");
+                JSONObject currentPrice = marketData.getJSONObject("current_price");
+
+                Optional<Double> usdPriceOptional = getDoubleFromJSONObject(currentPrice, "usd");
+                return usdPriceOptional.orElseThrow(() -> new IOException("USD price not found in API response."));
+            } else {
+                throw new IOException("Failed to fetch data from: " + apiUrl + ", status code: " + statusCode);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("HTTP request was interrupted.", e);
+        }
+    }
+
+    private Optional<Double> getDoubleFromJSONObject(JSONObject jsonObject, String key) {
+        if (jsonObject.has(key) && !jsonObject.isNull(key)) {
+            return Optional.of(jsonObject.getDouble(key));
+        }
+        return Optional.empty();
+    }
+
+
+
 
     private long getInitialDelay() {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/London"));
@@ -105,8 +147,7 @@ public class BotListener extends ListenerAdapter {
         StringBuffer responseContent = new StringBuffer();
         if (!event.getAuthor().isBot()) {
             String message = event.getMessage().getContentRaw();
-            if (message.charAt(0) != '!'){
-
+            if (message.charAt(0) != '!') {
                 List<String> messageArray = List.of(message.split(" "));
                 switch (messageArray.get(0)) {
                     case "!latestprediction":
@@ -142,7 +183,7 @@ public class BotListener extends ListenerAdapter {
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
-                        //call latest prediction
+                        //call the latest prediction
                         break;
 
                     case "!createpredictions":
@@ -178,15 +219,10 @@ public class BotListener extends ListenerAdapter {
 
                     case "!getprediction":
                         String currency = messageArray.get(1);
-                        
                         //code for getting a prediction.
                         break;
-
-
                 }
             }
-            }
-
-
+        }
     }
 }
