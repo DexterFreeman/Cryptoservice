@@ -34,7 +34,7 @@ export const Show = () => {
 
 
   return (
-    <div>
+    <div className="show-page">
       <Header back></Header>
       {store.resData.data && <>
       <header className="show-header">
@@ -74,8 +74,11 @@ export const Show = () => {
         </ResponsiveContainer>
     
       </div>
-      <DetailsGrid market_data={store.resData.data.market_data}></DetailsGrid>
+      
     </div> </>}
+    {store.resData.data && 
+    <div className="width"><DetailsGrid  market_data={store.resData.data.market_data}></DetailsGrid></div>
+    }
     </div>    
   );
 };
