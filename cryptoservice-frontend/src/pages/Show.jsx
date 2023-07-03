@@ -11,6 +11,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Header } from "../components/Header";
+import Button from "../components/Button";
+import DetailsGrid from "../components/DetailsGrid";
 export const Show = () => {
   const store = showStore();
   const params = useParams();
@@ -34,19 +36,18 @@ export const Show = () => {
   return (
     <div>
       <Header back></Header>
-
       {store.resData.data && <>
       <header className="show-header">
         <img src={store.resData.data.image.large} />
         <h2>{store.resData.data.name}</h2>
       </header>
+      
       <div className="prediction__container width">
-        <button onClick={handleClick}>Get prediction</button>
+        <Button handleClick={handleClick} innerText={"Get Prediction"}></Button>
         {store.predictionData.data && <div className="prediction__container-values"><h2>Prediction in 7 days:</h2>
         <h3>{store.predictionData.data.predicted_price}</h3></div>}
       </div>
      
-      
       <div className="width">
       <div className="show-graph">
         <ResponsiveContainer width="100%" height="100%">
@@ -73,36 +74,7 @@ export const Show = () => {
         </ResponsiveContainer>
     
       </div>
-      <div className="show-details">
-        <h2>Details</h2>
-      <div className="show-details-row">
-        <h4>Market cap rank⠀</h4>
-        <span>{store.resData.data.market_cap_rank}</span>
-      </div>
-      <div className="show-details-row">
-        <h4>24H high⠀</h4>
-        <span>${store.resData.data.market_data.high_24h.usd}</span>
-      </div>
-      <div className="show-details-row">
-        <h4>24H low⠀</h4>
-        <span>${store.resData.data.market_data.low_24h.usd}</span>
-      </div>
-      <div className="show-details-row">
-        <h4>Circulating supply⠀</h4>
-        <span>${store.resData.data.market_data.circulating_supply}</span>
-      </div>
-      <div className="show-details-row">
-        <h4>Current price⠀</h4>
-        <span>${store.resData.data.market_data.current_price.usd}</span>
-      </div>
-      <div className="show-details-row">
-        <h4>1yh Change⠀</h4>
-        <span>
-          {store.resData.data.market_data.price_change_percentage_1y}%
-        </span>
-      </div>
-      </div>
-     
+      <DetailsGrid market_data={store.resData.data.market_data}></DetailsGrid>
     </div> </>}
     </div>    
   );

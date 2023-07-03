@@ -58,7 +58,4 @@ const homeStore = create((set) => ({
   }
 }))
 
-
-
-
 export default homeStore
