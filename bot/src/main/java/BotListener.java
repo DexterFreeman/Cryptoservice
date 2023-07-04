@@ -24,7 +24,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-
 public class BotListener extends ListenerAdapter {
 
     private static HttpURLConnection connection;
@@ -38,9 +37,10 @@ public class BotListener extends ListenerAdapter {
             TextChannel textChannel = guild.getTextChannelById("1123175549435641869");
             createDailyTask(textChannel);
 
-    }, getInitialDelay(), TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
+        }, getInitialDelay(), TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
 
     }
+
     private void createDailyTask(TextChannel textChannel) {
         for (String currency : BotUtils.crypto_currencies_list) {
             try {
@@ -49,7 +49,8 @@ public class BotListener extends ListenerAdapter {
                 double predictedPrice = Double.parseDouble((String) predictionJson.get("predicted_price"));
                 textChannel.sendMessage("Currency: " + predictionJson.get("currency")).queue();
                 textChannel.sendMessage("Predicted price: " + predictedPrice).queue();
-                double currentPriceUSD = getCurrentPrice(BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency)));
+                double currentPriceUSD = getCurrentPrice(
+                        BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency)));
                 textChannel.sendMessage("Current price: " + currentPriceUSD).queue();
 
                 if (predictedPrice > currentPriceUSD) {
@@ -99,9 +100,6 @@ public class BotListener extends ListenerAdapter {
         return Optional.empty();
     }
 
-
-
-
     private long getInitialDelay() {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/London"));
         ZonedDateTime scheduledTime = now.withHour(12).withMinute(8).withSecond(0);
@@ -118,7 +116,7 @@ public class BotListener extends ListenerAdapter {
             URL apiUrl = new URL(url);
             HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
             connection.setRequestMethod("GET");
-            //Very high because my django api is very slow :(
+            // Very high because my django api is very slow :(
             connection.setConnectTimeout(25000);
             connection.setReadTimeout(2500000);
 
@@ -156,7 +154,8 @@ public class BotListener extends ListenerAdapter {
                 String cryptocurrency = jsonObject.getString("cryptocurrency");
 
                 Optional<Double> predictedPriceOptional = getDoubleFromJSONObject(jsonObject, "predicted_price");
-                double predictedPrice = predictedPriceOptional.orElseThrow(() -> new IOException("Predicted price not found in API response."));
+                double predictedPrice = predictedPriceOptional
+                        .orElseThrow(() -> new IOException("Predicted price not found in API response."));
 
                 event.getChannel().sendMessage("Timestamp: " + timestamp).queue();
                 event.getChannel().sendMessage("Cryptocurrency: " + cryptocurrency).queue();
@@ -169,16 +168,16 @@ public class BotListener extends ListenerAdapter {
         }
     }
 
-    public void createPrediction(MessageReceivedEvent event){
+    public void createPrediction(MessageReceivedEvent event) {
         for (String currency : BotUtils.crypto_currencies_list) {
             try {
                 String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
                 JSONObject predictionJson = getRequestJson(predictionUrl);
-                System.out.println(predictionJson);
                 event.getChannel().sendMessage("Currency: " + predictionJson.get("currency")).queue();
                 event.getChannel().sendMessage("Predicted price: " + predictionJson.get("predicted_price")).queue();
                 double predictedPrice = Double.parseDouble((String) predictionJson.get("predicted_price"));
-                double currentPriceUSD = getCurrentPrice(BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency));
+                double currentPriceUSD = getCurrentPrice(
+                        BotUtils.crypto_currencies_names.get(BotUtils.crypto_currencies_list.indexOf(currency)));
 
                 event.getChannel().sendMessage("Current price: " + currentPriceUSD).queue();
 
@@ -194,7 +193,7 @@ public class BotListener extends ListenerAdapter {
 
     }
 
-    public void getPrediction(String currency, MessageReceivedEvent event){
+    public void getPrediction(String currency, MessageReceivedEvent event) {
         try {
             String predictionUrl = "http://127.0.0.1:8000/predictions/latest/?currency=" + currency;
             JSONObject predictionJson = getRequestJson(predictionUrl);
@@ -202,42 +201,69 @@ public class BotListener extends ListenerAdapter {
             event.getChannel().sendMessage("Cryptocurrency: " + predictionJson.get("cryptocurrency")).queue();
             event.getChannel().sendMessage("Predicted price: " + predictionJson.get("predicted_price")).queue();
         } catch (Exception e) {
+            event.getChannel().sendMessage("Error on request, see console").queue();
             e.printStackTrace();
         }
+    }
+
+    public void createPrediction(String currency){
+        //Fill with code
     }
 
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-
         if (!event.getAuthor().isBot()) {
+            String currency = null; 
             String message = event.getMessage().getContentRaw();
             if (message.charAt(0) == '!') {
                 List<String> messageArray = List.of(message.split(" "));
                 switch (messageArray.get(0)) {
                     case "!latestprediction":
-                            getLatestPrediction(event);
+                        getLatestPrediction(event);
                         break;
 
                     case "!createpredictions":
-                            createPrediction(event);
+                        createPrediction(event);
                         break;
 
                     case "!getprediction":
-                        String currency = null;
-                        try{
+                        
+                        try {
                             currency = messageArray.get(1);
-                        }
-                        catch (Exception e){
-                            event.getChannel().sendMessage("Error: Cryptocurrency not valid").queue();
+                            if (currency == "" || currency == null) {
+                                event.getChannel().sendMessage("Error: currency not found in message").queue();
+                            } else {
+                                getPrediction(currency, event);
+                            }
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
-
-                        getPrediction(currency, event);
                         break;
 
-                    default:
-                        event.getChannel().sendMessage("Error: command not recognized").queue();
+                        case "!createprediction": 
+                            
+                            try{
+                                currency = messageArray.get(1); 
+                                if (currency == "" || currency == null) {
+                                event.getChannel().sendMessage("Error: currency not found in message").queue();
+                            } else {
+                                getPrediction(currency, event);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                            
+
+                    case "!help": 
+                        event.getChannel().sendMessage("List of commands: ").queue();
+                        event.getChannel().sendMessage("!latestprediction - gets the latest prediction made by the bot").queue();
+                        event.getChannel().sendMessage("!createpredictions - creates a new set of predictions").queue();
+                        event.getChannel().sendMessage("!getprediction (crypto currency) - Get a prediction of a specific currency").queue();
+
+                    default: 
+                        event.getChannel().sendMessage("Unknown command, please try again. Use !help for a list of commands if you're unsure.").queue();
+
                 }
             }
         }
