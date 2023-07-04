@@ -10,7 +10,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.http.HttpClient;
@@ -40,8 +39,6 @@ public class BotListener extends ListenerAdapter {
             createDailyTask(textChannel);
 
     }, getInitialDelay(), TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
-
-
 
     }
     private void createDailyTask(TextChannel textChannel) {
@@ -213,8 +210,6 @@ public class BotListener extends ListenerAdapter {
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
 
-        System.out.println("Messaged received");
-
         if (!event.getAuthor().isBot()) {
             String message = event.getMessage().getContentRaw();
             if (message.charAt(0) == '!') {
@@ -229,9 +224,20 @@ public class BotListener extends ListenerAdapter {
                         break;
 
                     case "!getprediction":
-                        String currency = messageArray.get(1);
+                        String currency = null;
+                        try{
+                            currency = messageArray.get(1);
+                        }
+                        catch (Exception e){
+                            event.getChannel().sendMessage("Error: Cryptocurrency not valid").queue();
+                            e.printStackTrace();
+                        }
+
                         getPrediction(currency, event);
                         break;
+
+                    default:
+                        event.getChannel().sendMessage("Error: command not recognized").queue();
                 }
             }
         }
