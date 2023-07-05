@@ -1,5 +1,6 @@
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
@@ -8,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -193,9 +195,70 @@ public class BotListener extends ListenerAdapter {
 
     }
 
+    public static double getCurrencyPrice(String cryptoSymbol) {
+        String apiKey = Keys.api_ninjas_key;
+        String apiUrl = "https://api.ninja.com/v1/ticker";
+
+        try {
+            URL url = new URL(apiUrl + "/" + cryptoSymbol + "-usd");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("X-RapidAPI-Key", apiKey);
+
+            int responseCode = connection.getResponseCode();
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuffer response = new StringBuffer();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+
+                String json = response.toString();
+                double price = Double.parseDouble(json);
+                return price;
+            } else {
+                System.out.println("Error: Unable to get data from the API. HTTP response code: " + responseCode);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return -1; // Return -1 to indicate an error occurred
+    }
+
+
     public void getPrediction(String currency, MessageReceivedEvent event) {
         try {
-            String predictionUrl = "http://127.0.0.1:8000/predictions/latest/?currency=" + currency;
+            String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
+            JSONObject requestData = getRequestJson(predictionUrl);
+            double predictedPrice = requestData.getDouble("predicted_price");
+            event.getChannel().sendMessage("Cryptocurrency: " + requestData.get("currency")).queue();
+            event.getChannel().sendMessage("Predicted price: " + predictedPrice).queue();
+            double currentPrice = getCurrencyPrice(currency);
+            if (currentPrice != -1){
+                event.getChannel().sendMessage("Current price:" + currentPrice).queue();
+              if (currentPrice > predictedPrice){
+                  event.getChannel().sendMessage("SELL").queue();
+              }
+              else{
+                  event.getChannel().sendMessage("BUY").queue();
+              }
+            }
+
+        } catch (Exception e) {
+            event.getChannel().sendMessage("Error on request, see console").queue();
+            e.printStackTrace();
+        }
+    }
+
+    public void createPrediction(String currency, MessageReceivedEvent event){
+        try {
+            String predictionUrl = "http://127.0.0.1:8000/predictions/get/?currency=" + currency;
             JSONObject predictionJson = getRequestJson(predictionUrl);
             event.getChannel().sendMessage("Timestamp: " + predictionJson.get("timestamp")).queue();
             event.getChannel().sendMessage("Cryptocurrency: " + predictionJson.get("cryptocurrency")).queue();
@@ -204,10 +267,6 @@ public class BotListener extends ListenerAdapter {
             event.getChannel().sendMessage("Error on request, see console").queue();
             e.printStackTrace();
         }
-    }
-
-    public void createPrediction(String currency){
-        //Fill with code
     }
 
 
@@ -227,7 +286,7 @@ public class BotListener extends ListenerAdapter {
                         createPrediction(event);
                         break;
 
-                    case "!getprediction":
+                    case "!createprediction":
                         
                         try {
                             currency = messageArray.get(1);
@@ -241,25 +300,13 @@ public class BotListener extends ListenerAdapter {
                         }
                         break;
 
-                        case "!createprediction": 
-                            
-                            try{
-                                currency = messageArray.get(1); 
-                                if (currency == "" || currency == null) {
-                                event.getChannel().sendMessage("Error: currency not found in message").queue();
-                            } else {
-                                getPrediction(currency, event);
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                            
+
 
                     case "!help": 
                         event.getChannel().sendMessage("List of commands: ").queue();
                         event.getChannel().sendMessage("!latestprediction - gets the latest prediction made by the bot").queue();
                         event.getChannel().sendMessage("!createpredictions - creates a new set of predictions").queue();
-                        event.getChannel().sendMessage("!getprediction (crypto currency) - Get a prediction of a specific currency").queue();
+                        event.getChannel().sendMessage("!createprediction (crypto currency) - Get a prediction of a specific currency").queue();
 
                     default: 
                         event.getChannel().sendMessage("Unknown command, please try again. Use !help for a list of commands if you're unsure.").queue();
